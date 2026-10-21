@@ -15,6 +15,17 @@ from app.services.orders import OrderService
 log = logging.getLogger("assigner")
 
 
+def distribute(pending: list[Order], staff: list[Manager], orders: list[Order]) -> list[tuple[Order, Manager]]:
+    load = Counter(o.get(config.COL_MANAGER) for o in orders
+                   if o.get(config.COL_STATUS) in config.EDITABLE_STATUSES)
+    picks = []
+    for order in pending:
+        manager = min(staff, key=lambda m: load[m.name])
+        load[manager.name] += 1
+        picks.append((order, manager))
+    return picks
+
+
 class OrderAssigner:
     def __init__(self, bot: Bot, orders: OrderService, managers: ManagerService) -> None:
         self._bot = bot
@@ -50,13 +61,7 @@ class OrderAssigner:
                 self._warned_nobody = True
             return
         self._warned_nobody = False
-        load = Counter(o.get(config.COL_MANAGER) for o in orders
-                       if o.get(config.COL_STATUS) in config.EDITABLE_STATUSES)
-        picks: list[tuple[Order, Manager]] = []
-        for order in pending:
-            manager = min(staff, key=lambda m: load[m.name])
-            load[manager.name] += 1
-            picks.append((order, manager))
+        picks = distribute(pending, staff, orders)
         stamp = now()
         await self._orders.update_many(
             {o[config.COL_ID]: {config.COL_MANAGER: m.name, config.COL_ASSIGNED: stamp} for o, m in picks})

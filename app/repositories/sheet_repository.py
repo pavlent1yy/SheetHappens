@@ -1,4 +1,3 @@
-import asyncio
 import functools
 import logging
 import threading
@@ -77,7 +76,7 @@ class SheetRepository:
         self._id_lock = threading.Lock()
         self._orders_headers = self._row1(self._orders)
         self._journal_headers = self._row1(self._journal)
-        self._last_num = self._max_journal_num()
+        self._last_num = self._max_num()
         log.info("Подключено к таблице «%s», последний ID %s", self._book.title, self._format_id(self._last_num))
 
     @staticmethod
@@ -101,9 +100,10 @@ class SheetRepository:
     def _journal_ids(self, col_num):
         return self._journal.col_values(col_num)[1:]
 
-    def _max_journal_num(self):
+    def _max_num(self):
         ids = self._with_headers(self._journal, "_journal_headers",
                                  lambda h: self._journal_ids(col(h, config.COL_ID, config.SHEET_JOURNAL)))
+        ids += [o[config.COL_ID] for o in self.all_orders()]
         nums = [int(m.group(1)) for m in (config.ID_RE.match(str(i)) for i in ids) if m]
         return max(nums, default=0)
 
@@ -273,17 +273,3 @@ class SheetRepository:
                     log.info("Менеджер @%s привязан к Telegram ID %s", username, tg_id)
                 return r[col(headers, config.MGR_NAME, config.SHEET_MANAGERS) - 1]
         return None
-
-
-class AsyncSheetRepository:
-    def __init__(self, repo: SheetRepository | None = None) -> None:
-        self._repo = repo or SheetRepository()
-
-    def __getattr__(self, name: str) -> Any:
-        attr = getattr(self._repo, name)
-        if not callable(attr):
-            return attr
-
-        async def call(*args, **kwargs):
-            return await asyncio.to_thread(attr, *args, **kwargs)
-        return call

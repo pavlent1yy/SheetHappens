@@ -31,14 +31,13 @@ class StatusNotifier:
     async def publish(self) -> None:
         changed = [o for o in await self._orders.all_orders()
                    if o.get(config.COL_STATUS) and o.get(config.COL_STATUS) != o.get(config.COL_CLIENT_STATUS)]
+        sent = [o for o in changed if await self._notify(o)]
         await self._orders.update_many(
-            {o[config.COL_ID]: {config.COL_CLIENT_STATUS: o[config.COL_STATUS]} for o in changed})
+            {o[config.COL_ID]: {config.COL_CLIENT_STATUS: o[config.COL_STATUS]} for o in sent})
         await self._orders.finish_send()
-        for order in changed:
-            await self._notify(order)
-        log.info("Рассылка по кнопке: изменённых статусов %s", len(changed))
+        log.info("Рассылка по кнопке: отправлено %s из %s", len(sent), len(changed))
 
-    async def _notify(self, order: Order) -> None:
+    async def _notify(self, order: Order) -> bool:
         text = texts.STATUS_CHANGED.format(
             id=order[config.COL_ID], status=html.escape(order.get(config.COL_STATUS, "")))
         comment = order.get(config.COL_MANAGER_COMMENT, "")
@@ -47,5 +46,7 @@ class StatusNotifier:
         try:
             await self._bot.send_message(int(order[config.COL_TG_ID]), text)
             log.info("Уведомление: %s → %s", order[config.COL_ID], order.get(config.COL_STATUS))
+            return True
         except Exception as e:
             log.warning("Не удалось уведомить по заявке %s: %s", order[config.COL_ID], e)
+            return False

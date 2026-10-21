@@ -3,7 +3,8 @@ import logging
 import sys
 
 from app import config
-from app.repositories.sheet_repository import AsyncSheetRepository
+from app.repositories.sheet_repository import SheetRepository
+from app.services.orders import OrderService
 
 logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -17,11 +18,12 @@ samples = [
 
 
 async def main():
-    repo = AsyncSheetRepository()
+    repo = await asyncio.to_thread(SheetRepository)
+    orders = OrderService(repo)
     ids = []
     try:
         for kind, sub, weight, price, src, dst in samples:
-            ids.append(await repo.create_order({
+            ids.append(await orders.create({
                 "Telegram": "@test_user",
                 "Telegram ID": "123456789",
                 "Тип": kind,
@@ -32,14 +34,14 @@ async def main():
                 "Куда": dst,
             }))
 
-        print(await repo.find_order(ids[1]))
+        print(await asyncio.to_thread(repo.find_order, ids[1]))
 
-        await repo.update_field(ids[-1], "Телефон получателя", "+7 900 123-45-67")
-        print(await repo.find_order(ids[-1]))
+        await asyncio.to_thread(repo.update_field, ids[-1], "Телефон получателя", "+7 900 123-45-67")
+        print(await asyncio.to_thread(repo.find_order, ids[-1]))
     finally:
         if CLEAN:
             for order_id in ids:
-                await repo.delete_order(order_id)
+                await asyncio.to_thread(repo.delete_order, order_id)
 
 
 asyncio.run(main())
