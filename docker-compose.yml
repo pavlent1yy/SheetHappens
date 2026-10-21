@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      GOOGLE_CREDENTIALS: /bot/credits.json
+      DATA_DIR: /bot/data
+    volumes:
+      - ./credits.json:/bot/credits.json:ro
+      - ./data:/bot/data

@@ -1,0 +1,6 @@
+.env
+.git
+credits.json
+data
+docs
+__pycache__

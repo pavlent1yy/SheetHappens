@@ -2,8 +2,8 @@ import asyncio
 import logging
 import sys
 
-import config
-from SheetRepository import AsyncSheetRepository
+from app import config
+from app.repositories.sheet_repository import AsyncSheetRepository
 
 logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
