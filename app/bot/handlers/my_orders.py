@@ -23,6 +23,6 @@ async def my_orders(message: Message, state: FSMContext, orders: OrderService) -
             id=o[config.COL_ID],
             created=o.get(config.COL_CREATED, ""),
             type=escape(o.get(config.COL_TYPE, "")),
-            status=escape(o.get(config.COL_STATUS, "")),
+            status=escape(o.get(config.COL_CLIENT_STATUS) or o.get(config.COL_STATUS, "")),
         ) for o in items)
     await show_menu(message, state, text)

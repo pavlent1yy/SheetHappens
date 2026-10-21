@@ -86,6 +86,9 @@ INTERNAL_ERROR = "Что-то пошло не так. Попробуйте ещ�
 STATUS_CHANGED = "🔔 Заявка <b>{id}</b>: новый статус — <b>{status}</b>"
 STATUS_COMMENT = "\n💬 Комментарий менеджера: {comment}"
 
+MANAGER_REGISTERED = "Вы отмечены как менеджер «{name}». Сюда будут приходить назначенные вам заявки."
+MANAGER_ASSIGNED = "🆕 Вам назначена заявка <b>{id}</b> от {user}\n\n{summary}"
+
 OWNER_MENU = "Панель владельца."
 OWNER_ONLY = "Команда доступна только владельцу."
 OWNER_STATS = "📊 Всего заявок: <b>{total}</b>, клиентов: <b>{clients}</b>\n{statuses}"

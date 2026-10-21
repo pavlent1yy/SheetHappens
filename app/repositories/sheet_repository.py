@@ -65,10 +65,15 @@ def col(headers: list[str], name: str, sheet: str = config.SHEET_ORDERS) -> int:
 class SheetRepository:
     def __init__(self, spreadsheet_id: str = config.SPREADSHEET_ID,
                  credentials_path: str = config.GOOGLE_CREDENTIALS) -> None:
-        self._book = gspread.service_account(filename=credentials_path).open_by_key(spreadsheet_id)
+        client = gspread.service_account(filename=credentials_path)
+        self._book = client.open_by_key(spreadsheet_id)
         self._orders = self._book.worksheet(config.SHEET_ORDERS)
         self._journal = self._book.worksheet(config.SHEET_JOURNAL)
         self._dicts = self._book.worksheet(config.SHEET_DICTS)
+        self._control = self._book.worksheet(config.SHEET_CONTROL)
+        managers_book = (self._book if config.MANAGERS_SPREADSHEET_ID == spreadsheet_id
+                         else client.open_by_key(config.MANAGERS_SPREADSHEET_ID))
+        self._managers = managers_book.worksheet(config.SHEET_MANAGERS)
         self._id_lock = threading.Lock()
         self._orders_headers = self._row1(self._orders)
         self._journal_headers = self._row1(self._journal)
@@ -134,6 +139,7 @@ class SheetRepository:
         row = dict(data)
         row[config.COL_CREATED] = now()
         row.setdefault(config.COL_STATUS, config.STATUS_NEW)
+        row.setdefault(config.COL_CLIENT_STATUS, row[config.COL_STATUS])
         headers = self._orders_headers = self._row1(self._orders)
         col(headers, config.COL_ID)
         # ID выдаётся из счётчика в памяти: рассчитано на один процесс бота
@@ -169,6 +175,23 @@ class SheetRepository:
         self._write_cell(row_num, col(headers, column), value)
         self.journal(tg_id or order.get(config.COL_TG_ID, ""), config.ACTION_UPDATED, order_id)
         log.info("Заявка %s: «%s» = %r (строка %s)", order_id, column, value, row_num)
+
+    @retry
+    def _batch_write(self, ws, data):
+        ws.batch_update(data, value_input_option=ValueInputOption.raw)
+
+    def update_many(self, changes: dict[str, dict[str, str]]) -> None:
+        if not changes:
+            return
+        headers, rows = self._all()
+        id_idx = col(headers, config.COL_ID) - 1
+        data = []
+        for i, row in enumerate(rows, start=2):
+            order_id = row[id_idx] if len(row) > id_idx else ""
+            for column, value in changes.get(order_id, {}).items():
+                data.append({"range": rowcol_to_a1(i, col(headers, column)), "values": [[value]]})
+        self._batch_write(self._orders, data)
+        log.info("Обновлено ячеек: %s (заявок %s)", len(data), len(changes))
 
     def delete_order(self, order_id: str, tg_id: int | str | None = None) -> None:
         row_num, _, order = self._find_row(order_id)
@@ -212,6 +235,44 @@ class SheetRepository:
             if r[st].strip():
                 statuses.append(r[st].strip())
         return {"subtypes": subtypes, "statuses": statuses}
+
+
+    @retry
+    def send_requested(self) -> bool:
+        return str(self._control.acell(config.CONTROL_SEND_CELL).value).upper() == "TRUE"
+
+    @retry
+    def finish_send(self) -> None:
+        self._control.batch_update([
+            {"range": config.CONTROL_SEND_CELL, "values": [[False]]},
+            {"range": config.CONTROL_SENT_AT_CELL, "values": [[now()]]},
+        ], value_input_option=ValueInputOption.user_entered)
+
+    @retry
+    def _manager_values(self):
+        return self._managers.get_all_values()
+
+    def managers(self) -> list[dict[str, str]]:
+        values = self._manager_values()
+        if not values:
+            return []
+        headers = values[0]
+        col(headers, config.MGR_NAME, config.SHEET_MANAGERS)
+        return [self._row_dict(headers, r) for r in values[1:] if any(c.strip() for c in r)]
+
+    def set_manager_tg_id(self, username: str, tg_id: int) -> str | None:
+        values = self._manager_values()
+        headers = values[0]
+        u_idx = col(headers, config.MGR_USERNAME, config.SHEET_MANAGERS) - 1
+        id_col = col(headers, config.MGR_TG_ID, config.SHEET_MANAGERS)
+        for i, r in enumerate(values[1:], start=2):
+            r = r + [""] * (len(headers) - len(r))
+            if r[u_idx].strip().lstrip("@").lower() == username.lower():
+                if r[id_col - 1] != str(tg_id):
+                    self._batch_write(self._managers, [{"range": rowcol_to_a1(i, id_col), "values": [[str(tg_id)]]}])
+                    log.info("Менеджер @%s привязан к Telegram ID %s", username, tg_id)
+                return r[col(headers, config.MGR_NAME, config.SHEET_MANAGERS) - 1]
+        return None
 
 
 class AsyncSheetRepository:

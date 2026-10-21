@@ -24,10 +24,12 @@ OWNER_ENABLED = _bool("OWNER_ENABLED", True)
 PHOTO_CHAT_ID = os.getenv("PHOTO_CHAT_ID", "")
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 PHOTOS_DIR = DATA_DIR / "photos"
-NOTIFY_STATE_FILE = DATA_DIR / "notified.json"
 
 DICTS_TTL = int(os.getenv("DICTS_TTL", "300"))
-NOTIFY_INTERVAL = int(os.getenv("NOTIFY_INTERVAL", "60"))
+NOTIFY_INTERVAL = int(os.getenv("NOTIFY_INTERVAL", "15"))
+ASSIGN_DELAY = int(os.getenv("ASSIGN_DELAY", "300"))
+ASSIGN_INTERVAL = int(os.getenv("ASSIGN_INTERVAL", "30"))
+MANAGERS_SPREADSHEET_ID = os.getenv("MANAGERS_SPREADSHEET_ID", "") or SPREADSHEET_ID
 
 TZ = timezone(timedelta(hours=3), "МСК")
 DATETIME_FORMAT = "%d.%m.%Y %H:%M:%S"
@@ -35,6 +37,11 @@ DATETIME_FORMAT = "%d.%m.%Y %H:%M:%S"
 SHEET_ORDERS = "Заявки"
 SHEET_DICTS = "Справочники"
 SHEET_JOURNAL = "Журнал"
+SHEET_MANAGERS = "Менеджеры"
+SHEET_CONTROL = "Управление"
+
+CONTROL_SEND_CELL = "B1"
+CONTROL_SENT_AT_CELL = "B2"
 
 COL_ID = "ID заявки"
 COL_CREATED = "Создана"
@@ -51,6 +58,14 @@ COL_PHOTO = "Фото"
 COL_PHONE = "Телефон получателя"
 COL_STATUS = "Статус"
 COL_MANAGER_COMMENT = "Комментарий менеджера"
+COL_CLIENT_STATUS = "Статус для клиента"
+COL_MANAGER = "Менеджер"
+COL_ASSIGNED = "Назначена"
+
+MGR_NAME = "Менеджер"
+MGR_USERNAME = "Telegram"
+MGR_TG_ID = "Telegram ID"
+WEEKDAYS = ("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 
 JOURNAL_TIME = "Время"
 JOURNAL_ACTION = "Действие"

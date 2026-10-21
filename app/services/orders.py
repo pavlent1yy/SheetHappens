@@ -75,6 +75,15 @@ class OrderService:
     async def all_orders(self) -> list[Order]:
         return await asyncio.to_thread(self._repo.all_orders)
 
+    async def update_many(self, changes: dict[str, dict[str, str]]) -> None:
+        await asyncio.to_thread(self._repo.update_many, changes)
+
+    async def send_requested(self) -> bool:
+        return await asyncio.to_thread(self._repo.send_requested)
+
+    async def finish_send(self) -> None:
+        await asyncio.to_thread(self._repo.finish_send)
+
     async def stats(self) -> Stats:
         orders = await self.all_orders()
         return Stats(
